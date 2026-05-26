@@ -1,0 +1,59 @@
+pipeline {
+
+    agent any
+
+    environment {
+        MODEL_NAME = "fraud-detector"
+    }
+
+    stages {
+
+        stage('Train Model') {
+            steps {
+                sh 'python fraud-ml-api/app/train.py'
+            }
+        }
+
+        stage('Validate Model') {
+            steps {
+                sh 'python fraud-ml-api/app/validate_model.py'
+            }
+        }
+
+        stage('Promote Model') {
+            steps {
+                sh 'python fraud-ml-api/app/promote_model.py'
+            }
+        }
+
+        stage('Import Model') {
+            steps {
+                sh 'python fraud-ml-api/app/import_model.py'
+            }
+        }
+
+        stage('Build ML API') {
+            steps {
+                dir('fraud-ml-api') {
+                    sh 'docker build -t fraud-ml-api:v1 .'
+                }
+            }
+        }
+
+        stage('Build MCP Server') {
+            steps {
+                dir('fraud-mcp-server') {
+                    sh 'docker build -t fraud-mcp-server:v1 .'
+                }
+            }
+        }
+
+        stage('Build Agent Service') {
+            steps {
+                dir('fraud-agent-service') {
+                    sh 'docker build -t fraud-agent-service:v1 .'
+                }
+            }
+        }
+    }
+}

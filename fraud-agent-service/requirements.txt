@@ -1,0 +1,9 @@
+langchain==0.3.13
+langgraph==0.2.60
+langchain-anthropic==0.3.0
+anthropic==0.42.0
+fastapi==0.115.6
+uvicorn==0.32.1
+requests==2.32.3
+qdrant-client==1.12.1
+pydantic==2.10.4

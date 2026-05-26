@@ -1,0 +1,10 @@
+service: "app.service:svc"
+
+include:
+  - "app/*.py"
+
+python:
+  packages:
+    - scikit-learn
+    - numpy
+    - pandas

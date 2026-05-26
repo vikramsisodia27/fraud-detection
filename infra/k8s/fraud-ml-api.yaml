@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: fraud-ml-api
+
+spec:
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app: fraud-ml-api
+
+  template:
+
+    metadata:
+      labels:
+        app: fraud-ml-api
+
+    spec:
+
+      containers:
+        - name: fraud-ml-api
+          image: fraud-ml-api:v1
+
+          ports:
+            - containerPort: 3000
