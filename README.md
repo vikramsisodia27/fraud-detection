@@ -162,6 +162,15 @@ python app/import_model.py
 This imports MLflow model into BentoML local store.
 
 ---
+# BentoMl Model list
+```bash
+ bentoml models list  
+ ```
+
+# Run BentoML Service
+```bash
+bentoml serve service:FraudDetectionService --reload  
+```
 
 # Start Complete Platform
 
