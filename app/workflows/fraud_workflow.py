@@ -2,10 +2,10 @@ from typing import TypedDict
 from langgraph.graph import StateGraph
 from langgraph.graph import END
 
-from agents.fraud_agent import fraud_agent
-from agents.aml_agent import aml_agent
-from agents.risk_agent import risk_agent
-from agents.decision_agent import decision_agent
+from app.agents.fraud_agent import fraud_agent
+from app.agents.aml_agent import aml_agent
+from app.agents.risk_agent import risk_agent
+from app.agents.decision_agent import decision_agent
 
 
 class FraudState(TypedDict):
