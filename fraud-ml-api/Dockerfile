@@ -2,11 +2,11 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY ../requirements.txt .
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY fraud-ml-api/ .
 
 EXPOSE 3000
 
-CMD ["bentoml", "serve", "app.service:svc", "--host", "0.0.0.0", "--port", "3000"]
+CMD ["bentoml", "serve", "app.service:FraudDetectionService", "--port", "3000"]

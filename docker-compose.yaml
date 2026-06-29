@@ -1,11 +1,11 @@
-version: '3.9'
-
 services:
 
   mlflow:
     image: ghcr.io/mlflow/mlflow:v2.19.0
     ports:
       - "5001:5000"
+    volumes:
+      - ./mlruns:/mlruns
 
   qdrant:
     image: qdrant/qdrant:v1.12.1
@@ -13,16 +13,30 @@ services:
       - "6333:6333"
 
   fraud-ml-api:
-    build: ./fraud-ml-api
+    build:
+      context: .
+      dockerfile: fraud-ml-api/Dockerfile
     ports:
       - "3000:3000"
+    volumes:
+      - ~/.bentoml:/root/bentoml
+    depends_on:
+      - mlflow
 
   fraud-mcp-server:
-    build: ./fraud-mcp-server
+    build:
+      context: .
+      dockerfile: fraud-mcp-server/Dockerfile
     ports:
       - "9000:9000"
+    depends_on:
+      - fraud-ml-api
 
   fraud-agent-service:
-    build: ./fraud-agent-service
+    build:
+      context: .
+      dockerfile: fraud-agent-service/Dockerfile
     ports:
       - "8000:8000"
+    depends_on:
+      - fraud-mcp-server

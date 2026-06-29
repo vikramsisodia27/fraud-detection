@@ -5,23 +5,33 @@ import numpy as np
 class FraudDetectionService:
 
     def __init__(self):
-        self.model = bentoml.mlflow.load_model("fraud-detector:latest")
+        self.model = None
+
+    def load_model(self):
+        if self.model is None:
+            self.model = bentoml.mlflow.load_model(
+                "fraud-detector:latest"
+            )
 
     @bentoml.api
     def predict(self, input_data: dict):
 
-        features = np.array([input_data["features"]])
+        self.load_model()
 
-        # FIX: MLflow model call
+        features = np.array(
+            [input_data["features"]]
+        )
+
         prediction = self.model.predict(features)
 
         try:
             proba = self.model.predict_proba(features)
+
             return {
                 "prediction": int(prediction[0]),
                 "fraud_score": float(proba[0][1])
             }
-        except Exception:
+        except:
             return {
                 "prediction": int(prediction[0])
             }
