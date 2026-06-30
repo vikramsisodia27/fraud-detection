@@ -1,4 +1,5 @@
 import pandas as pd
+import mlflow
 import mlflow.sklearn
 
 from sklearn.model_selection import train_test_split
@@ -6,107 +7,106 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report
 from sklearn.preprocessing import LabelEncoder
 
-# ---------------------------------------------------
-# Load Dataset
-# ---------------------------------------------------
+from config import MLFLOW_TRACKING_URI
 
-df = pd.read_csv("fraud_transactions.csv")
-
-# ---------------------------------------------------
-# Feature Engineering
-# ---------------------------------------------------
-
-categorical_cols = [
-
-    "merchant_category",
-    "payment_method",
-    "ip_country",
-    "customer_country"
-]
-
-for col in categorical_cols:
-
-    encoder = LabelEncoder()
-
-    df[col] = encoder.fit_transform(df[col])
-
-# ---------------------------------------------------
-# Features / Target
-# ---------------------------------------------------
-
-X = df.drop(columns=["is_fraud"])
-
-y = df["is_fraud"]
-
-# ---------------------------------------------------
-# Split
-# ---------------------------------------------------
-
-X_train, X_test, y_train, y_test = train_test_split(
-
-    X,
-    y,
-    test_size=0.2,
-    random_state=42,
-    stratify=y
-)
-
-# ---------------------------------------------------
-# MLflow Tracking
-# ---------------------------------------------------
-
-with mlflow.start_run():
-
-    model = RandomForestClassifier(
-
-        n_estimators=200,
-
-        max_depth=10,
-
-        class_weight="balanced",
-
-        random_state=42
-    )
-
-    model.fit(X_train, y_train)
-
-    predictions = model.predict(X_test)
-
-    accuracy = model.score(X_test, y_test)
-
-    report = classification_report(
-
-        y_test,
-        predictions
+def train():
+    mlflow.set_tracking_uri(
+        MLFLOW_TRACKING_URI
     )
 
     # ---------------------------------------------------
-    # Log Metrics
+    # Load Dataset
     # ---------------------------------------------------
 
-    mlflow.log_metric("accuracy", accuracy)
+    df = pd.read_csv("fraud_transactions.csv")
 
     # ---------------------------------------------------
-    # Log Parameters
+    # Feature Engineering
     # ---------------------------------------------------
 
-    mlflow.log_param("n_estimators", 200)
+    categorical_cols = [
+        "merchant_category",
+        "payment_method",
+        "ip_country",
+        "customer_country"
+    ]
 
-    mlflow.log_param("max_depth", 10)
+    for col in categorical_cols:
+        encoder = LabelEncoder()
+        df[col] = encoder.fit_transform(df[col])
 
     # ---------------------------------------------------
-    # Register Model
+    # Features / Target
     # ---------------------------------------------------
 
-    mlflow.sklearn.log_model(
+    X = df.drop(columns=["is_fraud"])
+    y = df["is_fraud"]
 
-        sk_model=model,
+    # ---------------------------------------------------
+    # Split
+    # ---------------------------------------------------
 
-        artifact_path="model",
-
-        registered_model_name="fraud-detector"
+    X_train, X_test, y_train, y_test = train_test_split(
+        X,
+        y,
+        test_size=0.2,
+        random_state=42,
+        stratify=y
     )
 
-    print(report)
+    # ---------------------------------------------------
+    # MLflow Tracking
+    # ---------------------------------------------------
 
-    print(f"Accuracy = {accuracy}")
+    with mlflow.start_run() as run:
+
+        model = RandomForestClassifier(
+            n_estimators=200,
+            max_depth=10,
+            class_weight="balanced",
+            random_state=42
+        )
+
+        model.fit(X_train, y_train)
+
+        predictions = model.predict(X_test)
+
+        accuracy = model.score(X_test, y_test)
+
+        report = classification_report(
+            y_test,
+            predictions
+        )
+
+        mlflow.log_metric(
+            "accuracy",
+            accuracy
+        )
+
+        mlflow.log_param(
+            "n_estimators",
+            200
+        )
+
+        mlflow.log_param(
+            "max_depth",
+            10
+        )
+
+        mlflow.sklearn.log_model(
+            sk_model=model,
+            artifact_path="model",
+            registered_model_name="fraud-detector"
+        )
+
+        print(report)
+        print(f"Accuracy = {accuracy}")
+
+        return {
+            "run_id": run.info.run_id,
+            "accuracy": accuracy
+        }
+
+
+if __name__ == "__main__":
+    train()

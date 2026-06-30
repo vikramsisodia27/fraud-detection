@@ -4,8 +4,14 @@ services:
     image: ghcr.io/mlflow/mlflow:v2.19.0
     ports:
       - "5001:5000"
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:///mlflow.db
+      --default-artifact-root /mlflow/artifacts
     volumes:
-      - ./mlruns:/mlruns
+      - ./mlflow:/mlflow
 
   qdrant:
     image: qdrant/qdrant:v1.12.1
@@ -22,6 +28,8 @@ services:
       - ~/.bentoml:/root/bentoml
     depends_on:
       - mlflow
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
 
   fraud-mcp-server:
     build:
