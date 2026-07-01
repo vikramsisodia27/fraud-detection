@@ -48,3 +48,6 @@ services:
       - "8000:8000"
     depends_on:
       - fraud-mcp-server
+    environment:
+      - ML_API_URL=http://fraud-ml-api:3000
+      - OPENAI_API_KEY=
