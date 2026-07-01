@@ -1,17 +1,14 @@
 import logging
 from typing import List, Dict
 
-embeddings = get_embeddings()
-qdrant = get_qdrant_client()
+from app.vector.embeddings import get_embeddings
+from app.vector.qdrant_client import get_qdrant_client
 
 from qdrant_client.models import (
     Filter,
     FieldCondition,
     MatchValue
 )
-
-
-
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +24,10 @@ class RagService:
     ) -> List[Dict]:
 
         try:
+            # Initialize only when needed
+            embeddings = get_embeddings()
+            qdrant = get_qdrant_client()
+
             query = f"""
             Historical fraud information,
             investigation reports,
@@ -59,26 +60,20 @@ class RagService:
             documents = []
 
             for result in results:
-
                 payload = result.payload
 
                 documents.append(
                     {
                         "score": result.score,
-                        "document_id":
-                            payload.get("id"),
-                        "customer_id":
-                            payload.get("customer_id"),
-                        "document_type":
-                            payload.get(
-                                "document_type"
-                            ),
-                        "created_date":
-                            payload.get(
-                                "created_date"
-                            ),
-                        "text":
-                            payload.get("text")
+                        "document_id": payload.get("id"),
+                        "customer_id": payload.get("customer_id"),
+                        "document_type": payload.get(
+                            "document_type"
+                        ),
+                        "created_date": payload.get(
+                            "created_date"
+                        ),
+                        "text": payload.get("text")
                     }
                 )
 
@@ -90,9 +85,10 @@ class RagService:
 
             return documents
 
-        except Exception:
+        except Exception as ex:
             logger.exception(
-                "Failed retrieving customer context"
+                "Failed retrieving customer context: %s",
+                str(ex)
             )
             return []
 
@@ -112,9 +108,8 @@ class RagService:
 
         if not documents:
             return (
-                f"No historical information "
-                f"found for customer "
-                f"{customer_id}"
+                f"No historical information found "
+                f"for customer {customer_id}"
             )
 
         context = []
@@ -123,11 +118,9 @@ class RagService:
 
             context.append(
                 f"""
-Document Type:
-{doc['document_type']}
-
-Created Date:
-{doc['created_date']}
+Document Type: {doc['document_type']}
+Created Date: {doc['created_date']}
+Similarity Score: {round(doc['score'], 4)}
 
 Content:
 {doc['text']}

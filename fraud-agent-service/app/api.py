@@ -45,9 +45,19 @@ def investigate(payload: dict):
         Execute:
         1. bureau_check
         2. aml_check
-        3. create_case
-
-        Return investigation summary.
+        3. customer_context
+        4. create_case
+        
+        Use customer_context to retrieve:
+        
+        - previous fraud cases
+        - analyst comments
+        - investigation notes
+        - SAR reports
+        - emails
+        - KYC documents
+        
+        Use this information while creating the investigation summary.
         """
 
         result = investigate_fraud(prompt)
