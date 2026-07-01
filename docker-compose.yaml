@@ -1,3 +1,5 @@
+version: '3.9'
+
 services:
 
   mlflow:
@@ -14,9 +16,13 @@ services:
       - ./mlflow:/mlflow
 
   qdrant:
-    image: qdrant/qdrant:v1.12.1
+    image: qdrant/qdrant:latest
+    container_name: qdrant
     ports:
       - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
 
   fraud-ml-api:
     build:
@@ -39,6 +45,13 @@ services:
       - "9000:9000"
     depends_on:
       - fraud-ml-api
+      - qdrant
+    environment:
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - OPENAI_API_KEY=
+
+
 
   fraud-agent-service:
     build:
@@ -48,6 +61,12 @@ services:
       - "8000:8000"
     depends_on:
       - fraud-mcp-server
+      - qdrant
     environment:
-      - ML_API_URL=http://fraud-ml-api:3000
-      - OPENAI_API_KEY=
+      ML_API_URL: http://fraud-ml-api:3000
+      OPENAI_API_KEY:
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+
+volumes:
+  qdrant_data:
