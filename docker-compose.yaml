@@ -49,9 +49,7 @@ services:
     environment:
       - QDRANT_HOST=qdrant
       - QDRANT_PORT=6333
-      - OPENAI_API_KEY=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
-
-
+      - OPENAI_API_KEY=
 
 
   fraud-agent-service:
@@ -65,7 +63,7 @@ services:
       - qdrant
     environment:
       ML_API_URL: http://fraud-ml-api:3000
-      OPENAI_API_KEY: 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
+      OPENAI_API_KEY:
       QDRANT_HOST: qdrant
       QDRANT_PORT: 6333
 
