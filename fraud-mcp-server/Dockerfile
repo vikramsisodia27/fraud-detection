@@ -9,4 +9,4 @@ COPY fraud-mcp-server/ .
 
 EXPOSE 9000
 
-CMD ["uvicorn", "app.server:app", "--host", "0.0.0.0", "--port", "9000"]
+CMD ["python", "-m", "app.server"]

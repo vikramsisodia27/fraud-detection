@@ -1,75 +1,39 @@
-import requests
-from langchain_core.tools import tool
+"""
+Real MCP client for fraud-agent-service.
 
-MCP_SERVER = "http://fraud-mcp-server:9000"
+Replaces the earlier version of this file, which faked "MCP" by wrapping
+plain requests.get()/post() calls in LangChain @tool decorators. This
+version uses langchain-mcp-adapters' MultiServerMCPClient, which speaks
+actual MCP protocol (tool discovery + typed schemas + invocation) to the
+fraud-mcp-server built in app/server.py.
 
+Because tools are *discovered* rather than hand-declared, adding a new
+tool to fraud-mcp-server (e.g. a `device_fingerprint_check` tool) makes
+it available here automatically — no code change needed in the agent.
+"""
 
-@tool
-def bureau_check(customer_id: str):
-    """
-    Perform bureau check for a customer.
-    """
+import os
 
-    response = requests.get(
-        f"{MCP_SERVER}/bureau_check/{customer_id}"
-    )
+from langchain_mcp_adapters.client import MultiServerMCPClient
 
-    return response.json()
+MCP_SERVER_URL = os.getenv(
+    "MCP_SERVER_URL",
+    "http://fraud-mcp-server:9000/mcp",
+)
 
-
-@tool
-def aml_check(customer_id: str):
-    """
-    Perform AML check for a customer.
-    """
-
-    response = requests.get(
-        f"{MCP_SERVER}/aml_check/{customer_id}"
-    )
-
-    return response.json()
-
-
-@tool
-def customer_context(customer_id: str):
-    """
-    Retrieve historical information for the customer,
-    including:
-
-    - fraud cases
-    - investigation notes
-    - analyst comments
-    - SAR reports
-    - emails
-    - KYC documents
-    """
-
-    response = requests.get(
-        f"{MCP_SERVER}/customer_context/{customer_id}"
-    )
-
-    return response.json()
-
-
-@tool
-def create_case(payload: str):
-    """
-    Create a fraud investigation case.
-    """
-
-    response = requests.post(
-        f"{MCP_SERVER}/create_case",
-        json={
-            "payload": payload
+_client = MultiServerMCPClient(
+    {
+        "fraud_mcp_server": {
+            "url": MCP_SERVER_URL,
+            "transport": "streamable_http",
         }
-    )
+    }
+)
 
-    return response.json()
 
-
-TOOLS = [
-    bureau_check,
-    aml_check,
-    customer_context,
-    create_case
-]
+async def get_tools():
+    """
+    Discover and return the live tool list from the MCP server.
+    Call this once at startup (see app/agent.py) rather than per-request.
+    """
+    return await _client.get_tools()

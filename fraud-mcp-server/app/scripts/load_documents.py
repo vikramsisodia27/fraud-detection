@@ -1,4 +1,4 @@
-import uuid
+import hashlib
 import os
 
 from qdrant_client import QdrantClient
@@ -17,25 +17,32 @@ embeddings = OpenAIEmbeddings(
     api_key=os.getenv("OPENAI_API_KEY")
 )
 
+
+def deterministic_id(doc: dict) -> str:
+    """
+    Stable ID derived from customer_id + document_type + text hash.
+    Re-running this script now UPSERTS in place instead of creating
+    duplicate points with fresh random UUIDs.
+    """
+    key = f"{doc['customer_id']}:{doc['document_type']}:{doc['text']}"
+    return hashlib.sha256(key.encode()).hexdigest()[:32]
+
+
 points = []
 
 for doc in documents:
-
-    vector = embeddings.embed_query(
-        doc["text"]
-    )
-
+    vector = embeddings.embed_query(doc["text"])
     points.append(
         PointStruct(
-            id=str(uuid.uuid4()),
+            id=deterministic_id(doc),
             vector=vector,
-            payload=doc
+            payload=doc,
         )
     )
 
 client.upsert(
     collection_name="customer_documents",
-    points=points
+    points=points,
 )
 
-print("Documents loaded.")
+print(f"Upserted {len(points)} documents (idempotent).")
