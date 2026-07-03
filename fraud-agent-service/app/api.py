@@ -4,7 +4,12 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from app.fraud_client import get_prediction
-from app.agent import investigate_fraud
+
+# True multi-agent supervisor graph (app/supervisor.py + app/agents/*).
+# app.agent.investigate_fraud (the original single all-tools ReAct agent)
+# is left fully intact and importable if you want to switch back or A/B
+# the two approaches — just swap this import.
+from app.supervisor import investigate_fraud_multiagent as investigate_fraud
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

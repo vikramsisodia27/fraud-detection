@@ -52,6 +52,7 @@ services:
 
 
 
+
   fraud-agent-service:
     build:
       context: .
