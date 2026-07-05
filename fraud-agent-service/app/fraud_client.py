@@ -1,5 +1,8 @@
 import os
-import requests
+
+import httpx
+
+from app.token_manager import get_service_token
 
 ML_API_URL = os.getenv(
     "ML_API_URL",
@@ -7,21 +10,19 @@ ML_API_URL = os.getenv(
 )
 
 
-def get_prediction(features):
+async def get_prediction(features):
+    token = await get_service_token()
 
-    response = requests.post(
-        f"{ML_API_URL}/predict",
-        json={
-            "input_data": {
-                "features": features
-            }
-        },
-        timeout=30
-    )
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.post(
+            f"{ML_API_URL}/predict",
+            json={
+                "input_data": {
+                    "features": features
+                }
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
 
-    print("Status:", response.status_code)
-    print("Body:", response.text)
-
-    response.raise_for_status()
-
-    return response.json()
+        response.raise_for_status()
+        return response.json()

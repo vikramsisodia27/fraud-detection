@@ -1,0 +1,8 @@
+{
+  "realm": "fraud_detection_realm",
+  "auth-server-url": "http://keycloak:8080",
+  "resource": "fraud-agent-service",
+  "credentials": {
+    "secret": "AhP7HCxMGJ5NhHjCbxi8jopfJGrIXlT1"
+  }
+}
