@@ -9,19 +9,18 @@ node that reports back to the supervisor" logic so each agent file only
 has to declare its name, tool(s), and system prompt.
 """
 
+import logging
 import os
 
-from langchain_openai import ChatOpenAI
 from langgraph.graph import MessagesState
 from langgraph.prebuilt import create_react_agent
 from langgraph.types import Command
 
 from app.mcp_client import get_tools
+from app import get_llm
 
-llm = ChatOpenAI(
-    model="gpt-5-mini",
-    api_key=os.getenv("OPENAI_API_KEY"),
-)
+logger = logging.getLogger(__name__)
+llm = get_llm()
 
 
 def make_specialist(agent_name: str, tool_names: list[str], system_prompt: str):
@@ -57,6 +56,18 @@ def make_specialist(agent_name: str, tool_names: list[str], system_prompt: str):
         agent = await get_agent()
         result = await agent.ainvoke(state)
         last_message = result["messages"][-1]
+
+        # Phase 5: Log cache-hit metrics if available
+        token_usage = result.get("response_metadata", {}).get("token_usage", {})
+        cached_tokens = token_usage.get("prompt_tokens_details", {}).get("cached_tokens", 0)
+        if cached_tokens:
+            logger.info(
+                "%s cache hit: %s cached / %s total tokens",
+                agent_name,
+                cached_tokens,
+                token_usage.get("prompt_tokens", 0),
+            )
+
         return Command(
             update={
                 "messages": [

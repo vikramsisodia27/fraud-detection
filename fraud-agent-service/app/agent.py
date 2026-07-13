@@ -1,15 +1,11 @@
 import os
 
 from langgraph.prebuilt import create_react_agent
-from langchain_openai import ChatOpenAI
 
 from app.mcp_client import get_tools
+from app import get_llm
 
-llm = ChatOpenAI(
-    model="gpt-5-mini",
-   # temperature=0,          # deterministic — this is a fraud/compliance workflow
-    api_key=os.getenv("OPENAI_API_KEY"),
-)
+llm = get_llm()
 
 _agent = None
 

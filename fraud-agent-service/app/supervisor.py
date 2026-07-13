@@ -14,36 +14,36 @@ clearer per-step reasoning traces, and an easy place to add new
 specialists later without touching the others.
 """
 
-import os
+import logging
 from typing import TypedDict, Literal
 
-from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, START, END, MessagesState
 from langgraph.types import Command
 
+from app import get_llm
 from app.agents import bureau_node, aml_node, compliance_node, case_node
+
+logger = logging.getLogger(__name__)
 
 MEMBERS = ["bureau_agent", "aml_agent", "compliance_agent", "case_agent"]
 OPTIONS = MEMBERS + ["FINISH"]
 
-SUPERVISOR_PROMPT = f"""You are the supervisor of a fraud-investigation team.
-You do not call any tools yourself — you only decide, at each step, which
-specialist should act next:
+SUPERVISOR_BASE = """You are the supervisor of a fraud-investigation team. You do not call any tools yourself — you only decide, at each step, which specialist should act next.
 
-- bureau_agent: runs a credit bureau / delinquency check
-- aml_agent: runs an AML / sanctions screening check
-- compliance_agent: retrieves historical customer context (past fraud
-  cases, SAR reports, KYC documents, analyst notes) via RAG
-- case_agent: creates the final investigation case record; must run LAST,
-  only after bureau_agent, aml_agent, and compliance_agent have all
-  reported results in the conversation
+AVAILABLE SPECIALISTS:
+- bureau_agent: Runs a credit bureau / delinquency check via the `bureau_check` tool.
+- aml_agent: Runs an AML / sanctions screening check via the `aml_check` tool.
+- compliance_agent: Retrieves historical customer context (past fraud cases, SAR reports, KYC documents, analyst notes) via the `customer_context` tool (RAG over vector store).
+- case_agent: Creates the final investigation case record via the `create_case` tool. Must run LAST, only after bureau_agent, aml_agent, and compliance_agent have all reported results.
 
-Look at the conversation so far and pick exactly one next step from:
-{", ".join(OPTIONS)}.
+ROUTING RULES:
+1. Always start with bureau_agent or aml_agent (order doesn't matter).
+2. Run compliance_agent after bureau and AML have reported.
+3. Run case_agent LAST, after all three specialists have reported.
+4. Once case_agent has created the case and reported the case ID, respond with FINISH.
 
-Do not route to case_agent until the other three specialists have each
-reported a result. Once case_agent has reported a created case, respond
-with FINISH."""
+DECISION FORMAT:
+Respond with EXACTLY ONE of: bureau_agent, aml_agent, compliance_agent, case_agent, FINISH"""
 
 
 class Router(TypedDict):
@@ -51,16 +51,40 @@ class Router(TypedDict):
     next: Literal["bureau_agent", "aml_agent", "compliance_agent", "case_agent", "FINISH"]
 
 
-llm = ChatOpenAI(
-    model="gpt-5-mini",
-    api_key=os.getenv("OPENAI_API_KEY"),
-)
+llm = get_llm()
 
 
 async def supervisor_node(state: MessagesState) -> Command:
-    messages = [{"role": "system", "content": SUPERVISOR_PROMPT}] + state["messages"]
+    # Build conversation summary from state
+    conversation_lines = []
+    for msg in state["messages"]:
+        role = msg.get("role", "user") if isinstance(msg, dict) else "user"
+        content = msg.get("content", "") if isinstance(msg, dict) else str(msg)
+        if role == "user":
+            name = "user"
+        else:
+            name = msg.get("name", role) if isinstance(msg, dict) else role
+        conversation_lines.append(f"{name}: {content[:500]}")
+
+    conversation_summary = "\n".join(conversation_lines[-6:])  # last 6 turns
+
+    messages = [
+        {"role": "system", "content": SUPERVISOR_BASE},
+        {"role": "user", "content": f"Current conversation:\n{conversation_summary}\n\nWho should act next?"},
+    ]
     router = llm.with_structured_output(Router)
     decision = await router.ainvoke(messages)
+
+    # Phase 5: Log cache-hit metrics if available
+    token_usage = decision.get("response_metadata", {}).get("token_usage", {})
+    cached_tokens = token_usage.get("prompt_tokens_details", {}).get("cached_tokens", 0)
+    if cached_tokens:
+        logger.info(
+            "Supervisor cache hit: %s cached / %s total tokens | routed to %s",
+            cached_tokens,
+            token_usage.get("prompt_tokens", 0),
+            decision["next"],
+        )
 
     goto = decision["next"]
     if goto == "FINISH":
