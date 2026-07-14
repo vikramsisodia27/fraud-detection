@@ -27,10 +27,10 @@ exists = any(
 if not exists:
     client.create_collection(
         collection_name="customer_documents",
-        vectors_config=VectorParams(
-            size=1536,
-            distance=Distance.COSINE
-        )
+            vectors_config=VectorParams(
+                size=384,
+                distance=Distance.COSINE
+            )
     )
 
     print(

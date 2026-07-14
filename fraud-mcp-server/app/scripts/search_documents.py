@@ -1,5 +1,5 @@
 from qdrant_client import QdrantClient
-from langchain_openai import OpenAIEmbeddings
+from app.vector.embeddings import get_embeddings
 import os
 
 client = QdrantClient(
@@ -7,10 +7,7 @@ client = QdrantClient(
     port=6333
 )
 
-embeddings = OpenAIEmbeddings(
-    model="text-embedding-3-small",
-    api_key=os.getenv("OPENAI_API_KEY")
-)
+embeddings = get_embeddings()
 
 query = """
 historical fraud cases
