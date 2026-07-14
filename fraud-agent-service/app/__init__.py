@@ -1,9 +1,14 @@
 """
 fraud-agent-service application package.
 
-Provides a shared ChatOpenAI singleton used by the supervisor and all
-specialist agents, so they reuse the same connection pool, token bucket,
-and prompt-cache prefix across every LLM call in the investigation flow.
+Provides a shared ChatOpenAI singleton (OpenAI-compatible) used by the
+supervisor and all specialist agents, so they reuse the same connection
+pool and token bucket across every LLM call in the investigation flow.
+
+The LLM backend is an OpenAI-compatible endpoint — by default this is a
+local vLLM server serving microsoft/Phi-3-mini-4k-instruct. To switch
+back to OpenAI proper, change LLM_BASE_URL to
+"https://api.openai.com/v1" and LLM_MODEL to the model of your choice.
 """
 
 import os
@@ -18,6 +23,10 @@ from langchain_openai import ChatOpenAI
 # due to growing conversation state, but provides a fallback).
 set_llm_cache(InMemoryCache())
 
+LLM_BASE_URL = os.getenv("LLM_BASE_URL", "http://local-llm-service:8001/v1")
+LLM_MODEL = os.getenv("LLM_MODEL", "microsoft/Phi-3-mini-4k-instruct")
+LLM_API_KEY = os.getenv("LLM_API_KEY", "EMPTY")  # vLLM accepts any key; never empty
+
 
 @lru_cache(maxsize=1)
 def get_llm() -> ChatOpenAI:
@@ -26,11 +35,13 @@ def get_llm() -> ChatOpenAI:
 
     Cached via lru_cache so every call returns the exact same object
     (identity check passes). This ensures the supervisor and all
-    specialist agents share connection pooling and OpenAI's server-side
-    prompt cache prefix.
+    specialist agents share connection pooling and consistent backend
+    configuration.
     """
     return ChatOpenAI(
-        model="gpt-5-mini",
+        model=LLM_MODEL,
+        base_url=LLM_BASE_URL,
+        api_key=LLM_API_KEY,
         # temperature=0 — deterministic fraud/compliance workflow
-        api_key=os.getenv("OPENAI_API_KEY"),
+        temperature=0,
     )

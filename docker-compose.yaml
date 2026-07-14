@@ -54,6 +54,21 @@ services:
 
 
 
+  local-llm-service:
+    build:
+      context: .
+      dockerfile: fraud-ml-api/infra/local-llm/Dockerfile
+    ports:
+      - "8001:8001"
+    # Uncomment the following lines for GPU acceleration:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
   fraud-agent-service:
     build:
       context: .
@@ -63,11 +78,16 @@ services:
     depends_on:
       - fraud-mcp-server
       - qdrant
+      - local-llm-service
     environment:
       ML_API_URL: http://fraud-ml-api:3000
-      OPENAI_API_KEY: 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
+      LLM_BASE_URL: http://local-llm-service:8001/v1
+      LLM_MODEL: microsoft/Phi-3-mini-4k-instruct
+      LLM_API_KEY: EMPTY
       QDRANT_HOST: qdrant
       QDRANT_PORT: 6333
+      OPENAI_API_KEY: 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
+
 
 
   keycloak-db:
