@@ -14,7 +14,9 @@ clearer per-step reasoning traces, and an easy place to add new
 specialists later without touching the others.
 """
 
+import json
 import logging
+import re
 from typing import TypedDict, Literal
 
 from langgraph.graph import StateGraph, START, END, MessagesState
@@ -42,8 +44,9 @@ ROUTING RULES:
 3. Run case_agent LAST, after all three specialists have reported.
 4. Once case_agent has created the case and reported the case ID, respond with FINISH.
 
-DECISION FORMAT:
-Respond with EXACTLY ONE of: bureau_agent, aml_agent, compliance_agent, case_agent, FINISH"""
+You MUST respond with valid JSON only, using EXACTLY this format:
+{"next": "bureau_agent"}
+Possible values for "next": bureau_agent, aml_agent, compliance_agent, case_agent, FINISH"""
 
 
 class Router(TypedDict):
@@ -52,6 +55,31 @@ class Router(TypedDict):
 
 
 llm = get_llm()
+
+
+def _parse_next(raw: str) -> str:
+    """Extract the routing decision from raw LLM output using JSON parsing."""
+    # Try to parse as JSON first
+    text = raw.strip()
+    # Remove markdown code fences if present
+    text = re.sub(r'^```(?:json)?\s*|```\s*$', '', text, flags=re.MULTILINE)
+    text = text.strip()
+
+    # Try JSON parse
+    try:
+        parsed = json.loads(text)
+        if isinstance(parsed, dict) and "next" in parsed:
+            return parsed["next"]
+    except json.JSONDecodeError:
+        pass
+
+    # Fallback: look for one of the valid tokens directly in the text
+    for option in ["FINISH", "case_agent", "compliance_agent", "aml_agent", "bureau_agent"]:
+        if option in text:
+            return option
+
+    logger.warning("Could not parse routing decision from: %s", raw[:200])
+    return "case_agent"  # safe fallback
 
 
 async def supervisor_node(state: MessagesState) -> Command:
@@ -72,24 +100,14 @@ async def supervisor_node(state: MessagesState) -> Command:
         {"role": "system", "content": SUPERVISOR_BASE},
         {"role": "user", "content": f"Current conversation:\n{conversation_summary}\n\nWho should act next?"},
     ]
-    router = llm.with_structured_output(Router)
-    decision = await router.ainvoke(messages)
 
-    # Phase 5: Log cache-hit metrics if available
-    token_usage = decision.get("response_metadata", {}).get("token_usage", {})
-    cached_tokens = token_usage.get("prompt_tokens_details", {}).get("cached_tokens", 0)
-    if cached_tokens:
-        logger.info(
-            "Supervisor cache hit: %s cached / %s total tokens | routed to %s",
-            cached_tokens,
-            token_usage.get("prompt_tokens", 0),
-            decision["next"],
-        )
+    # Use plain invoke without with_structured_output — the local LLM server
+    # doesn't support OpenAI function/tool calling, so we parse JSON from text.
+    response = await llm.ainvoke(messages)
+    raw_text = response.content if hasattr(response, "content") else str(response)
+    next_agent = _parse_next(raw_text)
 
-    goto = decision["next"]
-    if goto == "FINISH":
-        goto = END
-
+    goto = END if next_agent == "FINISH" else next_agent
     return Command(goto=goto)
 
 

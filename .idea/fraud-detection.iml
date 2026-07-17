@@ -5,6 +5,7 @@
       <sourceFolder url="file://$MODULE_DIR$/fraud-agent-service" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/fraud-mcp-server" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/fraud-mcp-server/app" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/fraud-ml-api" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/.venv" />
       <excludeFolder url="file://$MODULE_DIR$/fraud-ml-api/.venv" />
     </content>

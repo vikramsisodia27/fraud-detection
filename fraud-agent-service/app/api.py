@@ -3,8 +3,8 @@ import logging
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
+# from app.policy_enforcer_middleware import PolicyEnforcerMiddleware
 from app.fraud_client import get_prediction
-from app.policy_enforcer_middleware import PolicyEnforcerMiddleware
 
 # True multi-agent supervisor graph (app/supervisor.py + app/agents/*).
 # app.agent.investigate_fraud (the original single all-tools ReAct agent)
@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="fraud-agent-service")
-app.add_middleware(PolicyEnforcerMiddleware)
+# app.add_middleware(PolicyEnforcerMiddleware)  # Keycloak disabled — uncomment to re-enable
 
 FRAUD_SCORE_THRESHOLD = 0.70
 
