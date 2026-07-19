@@ -13,7 +13,7 @@ metadata:
   name: fraud-agent-service
   namespace: fraud-detection
 spec:
-  replicas: 1                # Single replica (stateless app)
+  replicas: 2                # 2 replicas — one per worker node
   selector:
     matchLabels:
       app: fraud-agent-service
@@ -24,8 +24,8 @@ spec:
     spec:
       containers:
         - name: fraud-agent-service
-          image: fraud-agent-service:latest
-          imagePullPolicy: Never   # Local image — don't pull from registry
+          image: host.docker.internal:5000/fraud-agent-service:latest
+          imagePullPolicy: Always   # Pull from local registry
           ports:
             - containerPort: 8000
           env:

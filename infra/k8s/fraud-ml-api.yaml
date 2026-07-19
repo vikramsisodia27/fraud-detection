@@ -14,7 +14,7 @@ metadata:
   name: fraud-ml-api
   namespace: fraud-detection
 spec:
-  replicas: 2                # Run 2 pods for redundancy
+  replicas: 1                # Run 1 pod (ml-api is lightweight and stateless)
   selector:
     matchLabels:
       app: fraud-ml-api
@@ -25,8 +25,8 @@ spec:
     spec:
       containers:
         - name: fraud-ml-api
-          image: fraud-ml-api:latest
-          imagePullPolicy: Never   # Don't try to pull from registry — image is local to Minikube
+          image: host.docker.internal:5000/fraud-ml-api:latest
+          imagePullPolicy: Always   # Pull from local registry
           ports:
             - containerPort: 3000
           env:
