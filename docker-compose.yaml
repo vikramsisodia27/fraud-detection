@@ -60,7 +60,7 @@ services:
       - fraud-mcp-server
       - qdrant
     environment:
-      ML_API_URL: http://fraud-ml-api:3000
+      ML_API_URL: http://localhost:3000
       LLM_BASE_URL: https://api.openai.com/v1
       LLM_MODEL: gpt-4o-mini
       LLM_API_KEY: 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

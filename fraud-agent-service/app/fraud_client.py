@@ -4,7 +4,7 @@ import httpx
 
 ML_API_URL = os.getenv(
     "ML_API_URL",
-    "http://fraud-ml-api:3000"
+    "http://localhost:3000"
 )
 
 

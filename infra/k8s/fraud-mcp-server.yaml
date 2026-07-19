@@ -1,0 +1,69 @@
+# =====================================================================
+# RESOURCE 1: Deployment
+# PURPOSE : Runs the MCP (Model Context Protocol) server that retrieves
+#           customer documents from Qdrant vector database using RAG.
+#           Acts as a bridge between the fraud agent and document store.
+# IMAGE   : Built from fraud-mcp-server/Dockerfile
+#           Uses `imagePullPolicy: Never` — local image in Minikube.
+# =====================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fraud-mcp-server
+  namespace: fraud-detection
+spec:
+  replicas: 1                # Only 1 replica needed (stateless)
+  selector:
+    matchLabels:
+      app: fraud-mcp-server
+  template:
+    metadata:
+      labels:
+        app: fraud-mcp-server
+    spec:
+      containers:
+        - name: fraud-mcp-server
+          image: fraud-mcp-server:latest
+          imagePullPolicy: Never   # Local image — don't pull from registry
+          ports:
+            - containerPort: 9000
+          env:
+            # Gets Qdrant host address from ConfigMap (value: "qdrant")
+            - name: QDRANT_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: fraud-detection-config
+                  key: QDRANT_HOST
+            # Gets Qdrant port from ConfigMap (value: "6333")
+            - name: QDRANT_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: fraud-detection-config
+                  key: QDRANT_PORT
+            # Gets OpenAI API key from Secret (you need to set this)
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: fraud-detection-secrets
+                  key: OPENAI_API_KEY
+
+# =====================================================================
+# RESOURCE 2: Service
+# PURPOSE : Provides stable DNS name `fraud-mcp-server:9000` so the
+#           fraud-agent-service can reach this MCP server.
+# =====================================================================
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fraud-mcp-server      # DNS name: "fraud-mcp-server"
+  namespace: fraud-detection
+spec:
+  selector:
+    app: fraud-mcp-server      # Routes traffic to pods with this label
+  ports:
+    - protocol: TCP
+      port: 9000               # Port the Service listens on
+      targetPort: 9000         # Port the container listens on
+  type: ClusterIP               # Internal only — access via:
+                                # kubectl port-forward svc/fraud-mcp-server 9000:9000

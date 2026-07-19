@@ -3,38 +3,27 @@ import mlflow
 import numpy as np
 import logging
 
-import torch
-import torch.nn as nn
-
-from app.llm_scorer import score_text
+# # COMMENTED OUT: FinBERT ensemble (not currently in use)
+# import torch
+# import torch.nn as nn
+# from app.llm_scorer import score_text
+# RF_WEIGHT = 0.7
+# BERT_WEIGHT = 0.3
+#
+# class FraudNN(nn.Module):
+#     """Must match the architecture in train_pytorch.py."""
+#     def __init__(self, input_dim: int = 10, num_classes: int = 2):
+#         super().__init__()
+#         self.net = nn.Sequential(
+#             nn.Linear(input_dim, 64), nn.ReLU(), nn.Dropout(0.3),
+#             nn.Linear(64, 32), nn.ReLU(), nn.Dropout(0.2),
+#             nn.Linear(32, 16), nn.ReLU(),
+#             nn.Linear(16, num_classes),
+#         )
+#     def forward(self, x):
+#         return self.net(x)
 
 logger = logging.getLogger(__name__)
-
-RF_WEIGHT = 0.7
-BERT_WEIGHT = 0.3
-
-# --------------- PyTorch model definition (must match train_pytorch.py) ---------------
-
-class FraudNN(nn.Module):
-    """Must match the architecture in train_pytorch.py."""
-
-    def __init__(self, input_dim: int = 10, num_classes: int = 2):
-        super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(input_dim, 64),
-            nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(64, 32),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(32, 16),
-            nn.ReLU(),
-            nn.Linear(16, num_classes),
-        )
-
-    def forward(self, x):
-        return self.net(x)
-
 
 # --------------- Service ---------------
 
@@ -43,27 +32,23 @@ class FraudDetectionService:
 
     def __init__(self):
         self.model = None
-        self.model_type = None  # "sklearn" or "pytorch"
 
     def load_model(self):
         if self.model is not None:
             return
 
-        # Try PyTorch model first, fall back to sklearn
-        try:
-            logger.info("Attempting to load PyTorch model 'fraud-detector-pytorch:latest'")
-            self.model = mlflow.pytorch.load_model("models:/fraud-detector-pytorch/latest")
-            self.model.eval()
-            self.model_type = "pytorch"
-            logger.info("Loaded PyTorch model")
-            return
-        except Exception:
-            logger.info("PyTorch model not found — falling back to sklearn RandomForest")
+        # # COMMENTED OUT: PyTorch model loading (not currently in use)
+        # try:
+        #     self.model = mlflow.pytorch.load_model("models:/fraud-detector-pytorch/latest")
+        #     self.model.eval()
+        #     logger.info("Loaded PyTorch model")
+        #     return
+        # except Exception:
+        #     logger.info("PyTorch model not found — falling back to sklearn RandomForest")
 
-        # Fallback: sklearn model (original)
+        # Load sklearn model
         try:
             self.model = bentoml.mlflow.load_model("fraud-detector:latest")
-            self.model_type = "sklearn"
             logger.info(f"Loaded sklearn model type: {type(self.model)}")
         except Exception:
             logger.exception("Failed to load sklearn model")
@@ -87,18 +72,16 @@ class FraudDetectionService:
 
         return pred_class, fraud_score
 
-    def _predict_pytorch(self, features: np.ndarray) -> tuple:
-        """Run PyTorch model, return (prediction_class, fraud_score)."""
-        device = next(self.model.parameters()).device
-        tensor = torch.from_numpy(features).float().to(device)
-
-        with torch.no_grad():
-            outputs = self.model(tensor)
-            probabilities = torch.softmax(outputs, dim=1)
-            pred_class = int(torch.argmax(probabilities, dim=1).item())
-            fraud_score = float(probabilities[0, 1].item())
-
-        return pred_class, fraud_score
+    # # COMMENTED OUT: PyTorch inference (not currently in use)
+    # def _predict_pytorch(self, features: np.ndarray) -> tuple:
+    #     device = next(self.model.parameters()).device
+    #     tensor = torch.from_numpy(features).float().to(device)
+    #     with torch.no_grad():
+    #         outputs = self.model(tensor)
+    #         probabilities = torch.softmax(outputs, dim=1)
+    #         pred_class = int(torch.argmax(probabilities, dim=1).item())
+    #         fraud_score = float(probabilities[0, 1].item())
+    #     return pred_class, fraud_score
 
     @bentoml.api
     async def predict(self, input_data: dict):
@@ -107,37 +90,30 @@ class FraudDetectionService:
 
         features = np.array([input_data["features"]])
 
-        if self.model_type == "pytorch":
-            pred_class, rf_score = self._predict_pytorch(features)
-        else:
-            pred_class, rf_score = self._predict_sklearn(features)
+        # # COMMENTED OUT: PyTorch inference path (not currently in use)
+        # if self.model_type == "pytorch":
+        #     pred_class, rf_score = self._predict_pytorch(features)
+        # else:
+        pred_class, rf_score = self._predict_sklearn(features)
 
         response = {"prediction": pred_class}
 
         # ---------------------------------------------------------------
-        # Ensemble: blend RF/NN score with BERT text sentiment score
+        # COMMENTED OUT: FinBERT ensemble scoring (not currently in use)
         # ---------------------------------------------------------------
-        text = input_data.get("text", "")
-        bert_score = None
-
-        if text:
-            try:
-                bert_score = await score_text(text)
-            except Exception:
-                logger.exception("BERT scoring failed in predict")
-
-        if bert_score is not None:
-            fraud_score = RF_WEIGHT * rf_score + BERT_WEIGHT * bert_score
-            logger.info(
-                "Ensemble score (%s): rf=%.4f bert=%.4f final=%.4f",
-                self.model_type, rf_score, bert_score, fraud_score,
-            )
-        else:
-            fraud_score = rf_score
-            logger.info(
-                "%s-only score: %.4f (no BERT input or BERT failed)",
-                self.model_type, fraud_score,
-            )
+        # text = input_data.get("text", "")
+        # bert_score = None
+        # if text:
+        #     try:
+        #         bert_score = await score_text(text)
+        #     except Exception:
+        #         logger.exception("BERT scoring failed in predict")
+        # if bert_score is not None:
+        #     fraud_score = RF_WEIGHT * rf_score + BERT_WEIGHT * bert_score
+        # else:
+        #     fraud_score = rf_score
+        # else:
+        fraud_score = rf_score
 
         response["fraud_score"] = fraud_score
 

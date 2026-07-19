@@ -1,0 +1,105 @@
+# =====================================================================
+# RESOURCE 1: Deployment
+# PURPOSE : Runs the fraud agent orchestrator — the main entry point
+#           that coordinates multiple AI agents (AML, Bureau, Case,
+#           Compliance) to detect fraud. This is the primary API.
+# IMAGE   : Built from fraud-agent-service/Dockerfile
+#           Uses `imagePullPolicy: Never` — local image in Minikube.
+# PORTS   : 8000 (the REST API endpoint)
+# =====================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fraud-agent-service
+  namespace: fraud-detection
+spec:
+  replicas: 1                # Single replica (stateless app)
+  selector:
+    matchLabels:
+      app: fraud-agent-service
+  template:
+    metadata:
+      labels:
+        app: fraud-agent-service
+    spec:
+      containers:
+        - name: fraud-agent-service
+          image: fraud-agent-service:latest
+          imagePullPolicy: Never   # Local image — don't pull from registry
+          ports:
+            - containerPort: 8000
+          env:
+            # --- Environment variables from ConfigMap (non-sensitive) ---
+            # Points to the fraud-ml-api service for ML predictions
+            - name: ML_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: fraud-detection-config
+                  key: ML_API_URL          # Value: http://fraud-ml-api:3000
+
+            # Base URL for LLM API calls (OpenAI compatible endpoint)
+            - name: LLM_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: fraud-detection-config
+                  key: LLM_BASE_URL        # Value: https://api.openai.com/v1
+
+            # Model name to use for LLM calls
+            - name: LLM_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: fraud-detection-config
+                  key: LLM_MODEL            # Value: gpt-4o-mini
+
+            # --- Environment variables from Secret (sensitive) ---
+            # API key for LLM provider (set your actual key in secrets.yaml)
+            - name: LLM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: fraud-detection-secrets
+                  key: LLM_API_KEY
+
+            # Qdrant host (vector database for document retrieval)
+            - name: QDRANT_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: fraud-detection-config
+                  key: QDRANT_HOST          # Value: qdrant
+
+            # Qdrant gRPC port
+            - name: QDRANT_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: fraud-detection-config
+                  key: QDRANT_PORT          # Value: 6333
+
+            # OpenAI API key for embeddings (set your actual key in secrets.yaml)
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: fraud-detection-secrets
+                  key: OPENAI_API_KEY
+
+# =====================================================================
+# RESOURCE 2: Service
+# PURPOSE : Provides stable DNS name `fraud-agent-service:8000` so
+#           external clients can reach the fraud detection API.
+#           This is the main service you'll interact with.
+# ACCESS  : From your Mac, use port-forward to reach it:
+#           kubectl port-forward svc/fraud-agent-service 8000:8000
+#           Then curl http://localhost:8000
+# =====================================================================
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fraud-agent-service    # DNS name: "fraud-agent-service"
+  namespace: fraud-detection
+spec:
+  selector:
+    app: fraud-agent-service    # Routes traffic to pods with this label
+  ports:
+    - protocol: TCP
+      port: 8000                # Port the Service listens on
+      targetPort: 8000          # Port the container listens on
+  type: ClusterIP                # Internal only — access via port-forward

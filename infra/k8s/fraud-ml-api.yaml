@@ -1,27 +1,58 @@
+# =====================================================================
+# RESOURCE 1: Deployment
+# PURPOSE : Runs the fraud ML API (BentoML) that serves ML model
+#           predictions. Has 2 replicas for high availability.
+# ANALOGY : 2 workers doing the same job — if one fails, the other
+#           keeps serving requests.
+# IMAGE   : Built from fraud-ml-api/Dockerfile
+#           Uses `imagePullPolicy: Never` because image is built
+#           directly into Minikube's Docker daemon (no registry).
+# =====================================================================
 apiVersion: apps/v1
 kind: Deployment
-
 metadata:
   name: fraud-ml-api
-
+  namespace: fraud-detection
 spec:
-  replicas: 2
-
+  replicas: 2                # Run 2 pods for redundancy
   selector:
     matchLabels:
       app: fraud-ml-api
-
   template:
-
     metadata:
       labels:
         app: fraud-ml-api
-
     spec:
-
       containers:
         - name: fraud-ml-api
-          image: fraud-ml-api:v1
-
+          image: fraud-ml-api:latest
+          imagePullPolicy: Never   # Don't try to pull from registry — image is local to Minikube
           ports:
             - containerPort: 3000
+          env:
+            - name: MLFLOW_TRACKING_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: fraud-detection-config   # Gets value from ConfigMap
+                  key: MLFLOW_TRACKING_URI        # Value: http://mlflow:5000
+
+# =====================================================================
+# RESOURCE 2: Service
+# PURPOSE : Provides stable DNS name `fraud-ml-api:3000` so other
+#           services (like fraud-agent-service) can reach this API.
+# =====================================================================
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fraud-ml-api          # DNS name: "fraud-ml-api"
+  namespace: fraud-detection
+spec:
+  selector:
+    app: fraud-ml-api          # Routes traffic to pods with this label
+  ports:
+    - protocol: TCP
+      port: 3000               # Port the Service listens on
+      targetPort: 3000         # Port the container listens on
+  type: ClusterIP               # Internal only — access via:
+                                # kubectl port-forward svc/fraud-ml-api 3000:3000

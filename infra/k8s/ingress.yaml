@@ -1,0 +1,100 @@
+# =====================================================================
+# Ingress Resource (for Minikube NGINX Ingress)
+# PURPOSE : Routes external HTTP/HTTPS traffic to the correct internal
+#           Service based on the URL path.
+# CONTROLLER: NGINX Ingress (built-in Minikube addon)
+#             Enable via: minikube addons enable ingress
+#
+# In Minikube, you can also access services via port-forward:
+#   kubectl port-forward svc/fraud-agent-service 8000:8000
+#   kubectl port-forward svc/fraud-ml-api 3000:3000
+#   kubectl port-forward svc/mlflow 5001:5000
+#   kubectl port-forward svc/qdrant 6333:6333
+# =====================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fraud-detection-ingress
+  namespace: fraud-detection
+  annotations:
+    # Rewrite paths so services receive clean URLs
+    # Example: /ml-api/predict → /predict
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx    # Use spec.ingressClassName instead of deprecated annotation
+  rules:
+    # Local domain for Minikube (add to /etc/hosts via: echo "$(minikube ip) fraud-detection.local" | sudo tee -a /etc/hosts)
+    - host: fraud-detection.local
+      http:
+        paths:
+          # ── fraud-agent-service (main orchestrator) ────────────
+          # Endpoints: GET / → health, POST /investigate → run fraud investigation
+          # URL: http://fraud-detection.local/investigate
+          - path: /(/|investigate|health)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: fraud-agent-service
+                port:
+                  number: 8000
+
+          # ── fraud-ml-api (ML prediction service via BentoML) ───
+          # Endpoint: POST /predict
+          # URL: http://fraud-detection.local/ml-api/predict
+          - path: /ml-api(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: fraud-ml-api
+                port:
+                  number: 3000
+
+          # ── fraud-mcp-server (MCP protocol server) ─────────────
+          # Endpoint: MCP tools at /mcp
+          # URL: http://fraud-detection.local/mcp
+          - path: /mcp(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: fraud-mcp-server
+                port:
+                  number: 9000
+
+          # ── MLflow UI ─────────────────────────────────────────
+          # URL: http://fraud-detection.local/mlflow
+          - path: /mlflow(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: mlflow
+                port:
+                  number: 5000
+
+          # ── Qdrant Dashboard ──────────────────────────────────
+          # URL: http://fraud-detection.local/qdrant
+          - path: /qdrant(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: qdrant
+                port:
+                  number: 6333
+---
+# =====================================================================
+# Path Rewriting Behavior (NGINX Ingress)
+# =====================================================================
+# With `nginx.ingress.kubernetes.io/rewrite-target: /$2`, NGINX strips
+# the path prefix before forwarding to the service.
+#
+# Example:
+#   Request:  /investigate              → forwarded to pod as: /
+#   Request:  /ml-api/predict           → forwarded to pod as: /predict
+#   Request:  /mcp                      → forwarded to pod as: /
+#   Request:  /mlflow/experiments       → forwarded to pod as: /experiments
+#   Request:  /qdrant/dashboard         → forwarded to pod as: /dashboard
+#
+# Access setup:
+#   1. Enable ingress: minikube addons enable ingress
+#   2. Get Minikube IP: minikube ip
+#   3. Add to /etc/hosts: echo "$(minikube ip) fraud-detection.local" | sudo tee -a /etc/hosts
+#   4. Now access via http://fraud-detection.local/investigate

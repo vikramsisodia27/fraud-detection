@@ -1,0 +1,91 @@
+# =====================================================================
+# RESOURCE 1: PersistentVolumeClaim (PVC)
+# PURPOSE : Requests 5GB of persistent disk storage for Qdrant's
+#           vector database files. Data survives pod restarts.
+# DOCKER EQ: `volumes: qdrant_data` + `volumes: qdrant_data:/qdrant/storage`
+# =====================================================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qdrant-pvc
+  namespace: fraud-detection
+spec:
+  accessModes:
+    - ReadWriteOnce          # Only one pod can read/write at a time
+  resources:
+    requests:
+      storage: 5Gi           # Request 5 gigabytes of disk space
+
+# =====================================================================
+# RESOURCE 2: StatefulSet
+# PURPOSE : Runs the Qdrant vector database. Similar to Deployment,
+#           but StatefulSet gives each pod a stable identity (name)
+#           and is better for stateful apps like databases.
+# ANALOGY : Like a Deployment, but the worker gets a permanent name
+#           tag instead of a random one — important for databases.
+# =====================================================================
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: qdrant
+  namespace: fraud-detection
+spec:
+  serviceName: qdrant        # Links to the Service for stable DNS
+  replicas: 1                # Keep exactly 1 pod running
+  selector:
+    matchLabels:
+      app: qdrant
+  template:
+    metadata:
+      labels:
+        app: qdrant
+    spec:
+      containers:
+        - name: qdrant
+          image: qdrant/qdrant:latest
+          ports:
+            - containerPort: 6333   # gRPC port (for app communication)
+            - containerPort: 6334   # HTTP port (for REST API / dashboard)
+
+          # --- volumeMounts: Attaches storage INSIDE the container ---
+          # Mounts the persistent volume at /qdrant/storage so Qdrant's
+          # vector index files are saved to disk permanently.
+          volumeMounts:
+            - name: qdrant-storage
+              mountPath: /qdrant/storage
+
+      # --- volumes: Declares the storage sources for this pod ---
+      volumes:
+        - name: qdrant-storage
+          persistentVolumeClaim:
+            claimName: qdrant-pvc   # Connects to PVC declared above
+
+# =====================================================================
+# RESOURCE 3: Service
+# PURPOSE : Provides stable DNS name `qdrant:6333` and `qdrant:6334`
+#           so other services (like fraud-mcp-server) can find Qdrant.
+# ANALOGY : A receptionist who says "Call qdrant:6333 to reach Qdrant"
+# =====================================================================
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qdrant               # This becomes the DNS name: "qdrant"
+  namespace: fraud-detection
+spec:
+  selector:
+    app: qdrant               # Routes traffic to pods with this label
+  ports:
+    - protocol: TCP
+      name: grpc              # Port 6333 = gRPC (for programmatic access)
+      port: 6333
+      targetPort: 6333
+    - protocol: TCP
+      name: http              # Port 6334 = HTTP dashboard (for browser)
+      port: 6334
+      targetPort: 6334
+  type: ClusterIP              # Only accessible within the cluster
+                               # Access from your Mac via:
+                               # kubectl port-forward svc/qdrant 6333:6333
+                               # Then connect at http://localhost:6333
