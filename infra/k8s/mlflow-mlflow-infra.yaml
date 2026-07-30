@@ -1,0 +1,84 @@
+# =====================================================================
+# RESOURCE 1: PersistentVolumeClaim (PVC)
+# PURPOSE : Requests 5GB of persistent disk storage from the cluster.
+#           This storage survives pod restarts and deletions.
+# NAMESPACE: mlflow-infra (separate from the main fraud-detection namespace)
+# =====================================================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mlflow-pvc
+  namespace: mlflow-infra
+spec:
+  accessModes:
+    - ReadWriteOnce          # Only one pod can read/write at a time
+  resources:
+    requests:
+      storage: 5Gi           # Request 5 gigabytes of disk space
+
+# =====================================================================
+# RESOURCE 2: Deployment
+# PURPOSE : Manages the MLflow server container with 1 replica.
+#           If the pod crashes, the Deployment automatically restarts it.
+# NAMESPACE: mlflow-infra
+# =====================================================================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow
+  namespace: mlflow-infra
+spec:
+  replicas: 1                # 1 replica as requested
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      containers:
+        - name: mlflow
+          image: ghcr.io/mlflow/mlflow:v2.19.0
+          ports:
+            - containerPort: 5000
+          command:
+            - mlflow
+            - server
+            - --host
+            - 0.0.0.0
+            - --port
+            - "5000"
+            - --backend-store-uri
+            - sqlite:///mlflow/mlflow.db
+            - --default-artifact-root
+            - /mlflow/artifacts
+          volumeMounts:
+            - name: mlflow-storage
+              mountPath: /mlflow
+      volumes:
+        - name: mlflow-storage
+          persistentVolumeClaim:
+            claimName: mlflow-pvc
+
+# =====================================================================
+# RESOURCE 3: Service
+# PURPOSE : Provides a stable DNS name `mlflow:5000` within the
+#           mlflow-infra namespace. Cross-namespace access uses the
+#           FQDN: mlflow.mlflow-infra.svc.cluster.local:5000
+# =====================================================================
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow
+  namespace: mlflow-infra
+spec:
+  selector:
+    app: mlflow
+  ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: 5000
+  type: ClusterIP
