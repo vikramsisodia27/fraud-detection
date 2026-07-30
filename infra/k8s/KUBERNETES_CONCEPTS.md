@@ -128,41 +128,91 @@ Full DNS record: `mlflow.fraud-detection.svc.cluster.local`
 
 Short form (within same namespace): `mlflow`
 
-### 2.2 How Services Find Each Other
+### 2.2 How Services Find Each Other (Same Namespace)
 
-In your project, these DNS names are configured in the ConfigMap:
+When services are in the same namespace, you can use the short DNS name:
 
-| ConfigMap Key | Value (DNS Name) | Resolves to Service | Container Port |
+```yaml
+ML_API_URL: "http://fraud-ml-api:3000"
+# Resolves to: fraud-ml-api.fraud-detection.svc.cluster.local:3000
+```
+
+### 2.3 How Services Find Each Other (Cross-Namespace)
+
+When services are in different namespaces, you must use the fully-qualified DNS name:
+
+```
+<service>.<namespace>.svc.cluster.local:<port>
+```
+
+Example:
+```yaml
+MLFLOW_TRACKING_URI: "http://mlflow.mlflow-infra.svc.cluster.local:5000"
+#               service    namespace
+```
+
+In your project, most DNS names are configured in the ConfigMap. `MLFLOW_TRACKING_URI` is hardcoded in `fraud-ml-api.yaml` since it's the only consumer:
+
+| Where | Value | Resolves to | Namespace |
 |---|---|---|---|
-| `MLFLOW_TRACKING_URI` | `http://mlflow:5000` | mlflow | 5000 |
-| `ML_API_URL` | `http://fraud-ml-api:3000` | fraud-ml-api | 3000 |
-| `QDRANT_HOST` | `qdrant` | qdrant | 6333 |
-| `FRAUD_MCP_SERVER` | `http://fraud-mcp-server:9000` | fraud-mcp-server | 9000 |
-| `FRAUD_AGENT_SERVICE` | `http://fraud-agent-service:8000` | fraud-agent-service | 8000 |
+| `infra/k8s/fraud-ml-api.yaml` (hardcoded `env.value`) | `http://mlflow.mlflow-infra.svc.cluster.local:5000` | mlflow | mlflow-infra |
+| ConfigMap key `ML_API_URL` | `http://fraud-ml-api:3000` | fraud-ml-api | fraud-detection |
+| ConfigMap key `QDRANT_HOST` | `qdrant` | qdrant | fraud-detection |
+| ConfigMap key `FRAUD_MCP_SERVER` | `http://fraud-mcp-server:9000` | fraud-mcp-server | fraud-detection |
+| ConfigMap key `FRAUD_AGENT_SERVICE` | `http://fraud-agent-service:8000` | fraud-agent-service | fraud-detection |
 
-### 2.3 Service Discovery Flow
+### 2.4 Service Discovery Flow
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                   Kubernetes Cluster                     │
-│                                                         │
-│   fraud-agent-service                                    │
-│       │                                                  │
-│       │── http://mlflow:5000 ──────▶ MLflow Service      │
-│       │── http://fraud-ml-api:3000 ──▶ fraud-ml-api Svc  │
-│       │── http://fraud-mcp-server:9000 ─▶ MCP Server Svc │
-│       │── grpc://qdrant:6333 ──────▶ Qdrant Service      │
-│       │                                                  │
+┌──────────────────────────────────────────────────────────┐
+│                   Kubernetes Cluster                      │
+│                                                          │
+│   ┌──────────────────────────────────────────┐            │
+│   │  namespace: fraud-detection               │            │
+│   │                                           │            │
+│   │  fraud-agent-service                      │            │
+│   │      │── http://fraud-ml-api:3000 ───▶ fraud-ml-api   │
+│   │      │── http://fraud-mcp-server:9000 ─▶ MCP Server   │
+│   │      │── grpc://qdrant:6333 ──────────▶ Qdrant        │
+│   │                                           │            │
+│   │  fraud-ml-api                             │            │
+│   │      │── http://mlflow.mlflow-infra       │            │
+│   │      │   .svc.cluster.local:5000          │            │
+│   └──────────────────────────────────────────┘            │
+│                    │                                      │
+│                    │ (cross-namespace DNS)                │
+│                    ▼                                      │
+│   ┌──────────────────────────────────────────┐            │
+│   │  namespace: mlflow-infra                  │            │
+│   │                                           │            │
+│   │  mlflow:5000 (tracking server)            │            │
+│   │                                           │            │
+│   │  Secrets: mlflow-infra-secrets            │            │
+│   │  (duplicated for namespace isolation)     │            │
+│   └──────────────────────────────────────────┘            │
+│                                                          │
 │   CoreDNS resolves all these names automatically         │
-│                                                         │
-│   fraud-ml-api                                           │
-│       │── http://mlflow:5000 ──────▶ MLflow Service      │
-│                                                         │
-│   fraud-mcp-server                                       │
-│       │── grpc://qdrant:6333 ──────▶ Qdrant Service      │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
+└──────────────────────────────────────────────────────────┘
 ```
+
+### 2.5 Cross-Namespace Secrets
+
+Kubernetes **Secrets are namespace-scoped**. A Secret in one namespace cannot be referenced by a pod in another namespace. This means:
+
+```
+✅ Pod in fraud-detection can use Secret fraud-detection-secrets
+✅ Pod in mlflow-infra can use Secret mlflow-infra-secrets
+❌ Pod in mlflow-infra CANNOT use Secret fraud-detection-secrets
+```
+
+**Solution**: Duplicate the required secrets into each namespace:
+
+| Namespace | Secret Name | File |
+|---|---|---|
+| `fraud-detection` | `fraud-detection-secrets` | `infra/k8s/secrets.yaml` |
+| `mlflow-infra` | `mlflow-infra-secrets` | `infra/k8s/secrets-mlflow-infra.yaml` |
+
+> **Note**: Currently MLflow (the only service in `mlflow-infra`) does **not** require any API keys. The secret is provided for future services deployed in that namespace.
 
 **Key point**: CoreDNS handles this identically in Minikube, EKS, or any Kubernetes cluster.
 

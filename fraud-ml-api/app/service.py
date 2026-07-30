@@ -3,26 +3,6 @@ import mlflow
 import numpy as np
 import logging
 
-# # COMMENTED OUT: FinBERT ensemble (not currently in use)
-# import torch
-# import torch.nn as nn
-# from app.llm_scorer import score_text
-# RF_WEIGHT = 0.7
-# BERT_WEIGHT = 0.3
-#
-# class FraudNN(nn.Module):
-#     """Must match the architecture in train_pytorch.py."""
-#     def __init__(self, input_dim: int = 10, num_classes: int = 2):
-#         super().__init__()
-#         self.net = nn.Sequential(
-#             nn.Linear(input_dim, 64), nn.ReLU(), nn.Dropout(0.3),
-#             nn.Linear(64, 32), nn.ReLU(), nn.Dropout(0.2),
-#             nn.Linear(32, 16), nn.ReLU(),
-#             nn.Linear(16, num_classes),
-#         )
-#     def forward(self, x):
-#         return self.net(x)
-
 logger = logging.getLogger(__name__)
 
 # --------------- Service ---------------

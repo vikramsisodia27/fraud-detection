@@ -1,121 +1,136 @@
-version: '3.9'
-
-services:
-
-  mlflow:
-    image: ghcr.io/mlflow/mlflow:v2.19.0
-    ports:
-      - "5001:5000"
-    command: >
-      mlflow server
-      --host 0.0.0.0
-      --port 5000
-      --backend-store-uri sqlite:///mlflow.db
-      --default-artifact-root /mlflow/artifacts
-    volumes:
-      - ./mlflow:/mlflow
-
-  qdrant:
-    image: qdrant/qdrant:latest
-    container_name: qdrant
-    ports:
-      - "6333:6333"
-      - "6334:6334"
-    volumes:
-      - qdrant_data:/qdrant/storage
-
-  fraud-ml-api:
-    build:
-      context: .
-      dockerfile: fraud-ml-api/Dockerfile
-    ports:
-      - "3000:3000"
-    volumes:
-      - ~/.bentoml:/root/bentoml
-    depends_on:
-      - mlflow
-    environment:
-      MLFLOW_TRACKING_URI: http://mlflow:5000
-
-  fraud-mcp-server:
-    build:
-      context: .
-      dockerfile: fraud-mcp-server/Dockerfile
-    ports:
-      - "9000:9000"
-    depends_on:
-      - fraud-ml-api
-      - qdrant
-    environment:
-      - QDRANT_HOST=qdrant
-      - QDRANT_PORT=6333
-      - OPENAI_API_KEY=
-  fraud-agent-service:
-    build:
-      context: .
-      dockerfile: fraud-agent-service/Dockerfile
-    ports:
-      - "8000:8000"
-    depends_on:
-      - fraud-mcp-server
-      - qdrant
-    environment:
-      ML_API_URL: http://localhost:3000
-      LLM_BASE_URL: https://api.openai.com/v1
-      LLM_MODEL: gpt-4o-mini
-      LLM_API_KEY: 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
-      QDRANT_HOST: qdrant
-      QDRANT_PORT: 6333
-      OPENAI_API_KEY:
-  # keycloak-db:
-  #   image: postgres:16
-  #   container_name: keycloak-db
-  #   environment:
-  #     POSTGRES_DB: keycloak
-  #     POSTGRES_USER: keycloak
-  #     POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
-  #   volumes:
-  #     - keycloak_db_data:/var/lib/postgresql/data
-  #   healthcheck:
-  #     test: [ "CMD-SHELL", "pg_isready -U keycloak -d keycloak" ]
-  #     interval: 5s
-  #     timeout: 5s
-  #     retries: 10
-
-  # keycloak:
-  #   image: quay.io/keycloak/keycloak:26.0
-  #   container_name: keycloak
-  #   command: start-dev
-  #   depends_on:
-  #     keycloak-db:
-  #       condition: service_healthy
-  #   environment:
-  #     KC_DB: postgres
-  #     KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
-  #     KC_DB_USERNAME: keycloak
-  #     KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
-  #     KC_BOOTSTRAP_ADMIN_USERNAME: admin
-  #     KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
-  #     KC_HTTP_ENABLED: "true"
-  #   ports:
-  #     - "8080:8080"
-
-  # pgadmin:
-  #   image: dpage/pgadmin4:latest
-  #   container_name: pgadmin
-  #   depends_on:
-  #     keycloak-db:
-  #       condition: service_healthy
-  #   environment:
-  #     PGADMIN_DEFAULT_EMAIL: admin@local.dev
-  #     PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
-  #     ports:
-  #       - "5050:80"
-  #     volumes:
-  #       - pgadmin_data:/var/lib/pgadmin
-
-
-volumes:
-  qdrant_data:
-  # keycloak_db_data:
-  # pgadmin_data:
+# =====================================================================
+# DOCKER-COMPOSE.YAML — DISABLED
+# =====================================================================
+# This file is preserved for reference only.
+# The project has migrated to Kubernetes (Minikube).
+#
+# All services now run in:
+#   namespace: fraud-detection (agent, ML API, MCP server, Qdrant)
+#   namespace: mlflow-infra   (MLflow tracking server, 1 replica)
+#
+# See infra/k8s/ for all manifests.
+# See infra/k8s/MINIKUBE_MIGRATION_PLAN.md for deploy instructions.
+# =====================================================================
+# version: '3.9'
+# 
+# services:
+# 
+#   mlflow:
+#     image: ghcr.io/mlflow/mlflow:v2.19.0
+#     ports:
+#       - "5001:5000"
+#     command: >
+#       mlflow server
+#       --host 0.0.0.0
+#       --port 5000
+#       --backend-store-uri sqlite:///mlflow.db
+#       --default-artifact-root /mlflow/artifacts
+#     volumes:
+#       - ./mlflow:/mlflow
+# 
+#   qdrant:
+#     image: qdrant/qdrant:latest
+#     container_name: qdrant
+#     ports:
+#       - "6333:6333"
+#       - "6334:6334"
+#     volumes:
+#       - qdrant_data:/qdrant/storage
+# 
+#   fraud-ml-api:
+#     build:
+#       context: .
+#       dockerfile: fraud-ml-api/Dockerfile
+#     ports:
+#       - "3000:3000"
+#     volumes:
+#       - ~/.bentoml:/root/bentoml
+#     depends_on:
+#       - mlflow
+#     environment:
+#       MLFLOW_TRACKING_URI: http://mlflow:5000
+# 
+#   fraud-mcp-server:
+#     build:
+#       context: .
+#       dockerfile: fraud-mcp-server/Dockerfile
+#     ports:
+#       - "9000:9000"
+#     depends_on:
+#       - fraud-ml-api
+#       - qdrant
+#     environment:
+#       - QDRANT_HOST=qdrant
+#       - QDRANT_PORT=6333
+#       - OPENAI_API_KEY=
+# 
+#   fraud-agent-service:
+#     build:
+#       context: .
+#       dockerfile: fraud-agent-service/Dockerfile
+#     ports:
+#       - "8000:8000"
+#     depends_on:
+#       - fraud-mcp-server
+#       - qdrant
+#     environment:
+#       ML_API_URL: http://localhost:3000
+#       LLM_BASE_URL: https://api.openai.com/v1
+#       LLM_MODEL: gpt-4o-mini
+#       LLM_API_KEY: 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
+#       QDRANT_HOST: qdrant
+#       QDRANT_PORT: 6333
+#       OPENAI_API_KEY:
+# 
+#   # keycloak-db:
+#   #   image: postgres:16
+#   #   container_name: keycloak-db
+#   #   environment:
+#   #     POSTGRES_DB: keycloak
+#   #     POSTGRES_USER: keycloak
+#   #     POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+#   #   volumes:
+#   #     - keycloak_db_data:/var/lib/postgresql/data
+#   #   healthcheck:
+#   #     test: [ "CMD-SHELL", "pg_isready -U keycloak -d keycloak" ]
+#   #     interval: 5s
+#   #     timeout: 5s
+#   #     retries: 10
+# 
+#   # keycloak:
+#   #   image: quay.io/keycloak/keycloak:26.0
+#   #   container_name: keycloak
+#   #   command: start-dev
+#   #   depends_on:
+#   #     keycloak-db:
+#   #       condition: service_healthy
+#   #   environment:
+#   #     KC_DB: postgres
+#   #     KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+#   #     KC_DB_USERNAME: keycloak
+#   #     KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+#   #     KC_BOOTSTRAP_ADMIN_USERNAME: admin
+#   #     KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+#   #     KC_HTTP_ENABLED: "true"
+#   #   ports:
+#   #     - "8080:8080"
+# 
+#   # pgadmin:
+#   #   image: dpage/pgadmin4:latest
+#   #   container_name: pgadmin
+#   #   depends_on:
+#   #     keycloak-db:
+#   #       condition: service_healthy
+#   #   environment:
+#   #     PGADMIN_DEFAULT_EMAIL: admin@local.dev
+#   #     PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+#   #     ports:
+#   #       - "5050:80"
+#   #     volumes:
+#   #       - pgadmin_data:/var/lib/pgadmin
+# 
+# 
+# volumes:
+#   qdrant_data:
+#   # keycloak_db_data:
+#   # pgadmin_data:

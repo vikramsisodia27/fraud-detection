@@ -26,15 +26,14 @@ spec:
       containers:
         - name: fraud-ml-api
           image: host.docker.internal:5000/fraud-ml-api:latest
-          imagePullPolicy: Always   # Pull from local registry
+          imagePullPolicy: Always   # Pull from local Docker registry
           ports:
             - containerPort: 3000
           env:
+            # MLflow tracking server lives in mlflow-infra namespace
+            # Cross-namespace DNS: <service>.<namespace>.svc.cluster.local
             - name: MLFLOW_TRACKING_URI
-              valueFrom:
-                configMapKeyRef:
-                  name: fraud-detection-config   # Gets value from ConfigMap
-                  key: MLFLOW_TRACKING_URI        # Value: http://mlflow:5000
+              value: "http://mlflow.mlflow-infra.svc.cluster.local:5000"
 
 # =====================================================================
 # RESOURCE 2: Service

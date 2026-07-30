@@ -24,7 +24,7 @@ spec:
       containers:
         - name: fraud-mcp-server
           image: host.docker.internal:5000/fraud-mcp-server:latest
-          imagePullPolicy: Always   # Pull from local registry
+          imagePullPolicy: Always   # Pull from local Docker registry
           ports:
             - containerPort: 9000
           env:

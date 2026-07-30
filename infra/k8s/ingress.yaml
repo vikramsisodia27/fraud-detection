@@ -8,7 +8,7 @@
 # In Minikube, you can also access services via port-forward:
 #   kubectl port-forward svc/fraud-agent-service 8000:8000
 #   kubectl port-forward svc/fraud-ml-api 3000:3000
-#   kubectl port-forward svc/mlflow 5001:5000
+#   kubectl port-forward -n mlflow-infra svc/mlflow 5001:5000
 #   kubectl port-forward svc/qdrant 6333:6333
 # =====================================================================
 apiVersion: networking.k8s.io/v1
@@ -60,16 +60,6 @@ spec:
                 port:
                   number: 9000
 
-          # ── MLflow UI ─────────────────────────────────────────
-          # URL: http://fraud-detection.local/mlflow
-          - path: /mlflow(/|$)(.*)
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: mlflow
-                port:
-                  number: 5000
-
           # ── Qdrant Dashboard ──────────────────────────────────
           # URL: http://fraud-detection.local/qdrant
           - path: /qdrant(/|$)(.*)
@@ -90,7 +80,6 @@ spec:
 #   Request:  /investigate              → forwarded to pod as: /
 #   Request:  /ml-api/predict           → forwarded to pod as: /predict
 #   Request:  /mcp                      → forwarded to pod as: /
-#   Request:  /mlflow/experiments       → forwarded to pod as: /experiments
 #   Request:  /qdrant/dashboard         → forwarded to pod as: /dashboard
 #
 # Access setup:
