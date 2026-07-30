@@ -1,0 +1,18 @@
+{{- if .Values.mlflow.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.mlflow.name }}
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: {{ .Values.mlflow.name }}
+    {{- include "mlflow-infra.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: {{ .Values.mlflow.name }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.mlflow.port }}
+      targetPort: {{ .Values.mlflow.port }}
+  type: ClusterIP
+{{- end }}

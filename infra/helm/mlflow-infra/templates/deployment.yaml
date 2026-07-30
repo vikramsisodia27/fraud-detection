@@ -1,0 +1,47 @@
+{{- if .Values.mlflow.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.mlflow.name }}
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: {{ .Values.mlflow.name }}
+    {{- include "mlflow-infra.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.mlflow.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.mlflow.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.mlflow.name }}
+        {{- include "mlflow-infra.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Values.mlflow.name }}
+          image: "{{ .Values.mlflow.image }}:{{ .Values.mlflow.tag }}"
+          imagePullPolicy: {{ default "IfNotPresent" .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.mlflow.port }}
+          command:
+            - mlflow
+            - server
+            - --host
+            - 0.0.0.0
+            - --port
+            - {{ .Values.mlflow.port | quote }}
+            - --backend-store-uri
+            - sqlite:///mlflow/mlflow.db
+            - --default-artifact-root
+            - /mlflow/artifacts
+          volumeMounts:
+            - name: mlflow-storage
+              mountPath: /mlflow
+          resources:
+            {{- toYaml .Values.mlflow.resources | nindent 12 }}
+      volumes:
+        - name: mlflow-storage
+          persistentVolumeClaim:
+            claimName: {{ .Values.mlflow.name }}-pvc
+{{- end }}

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: fraud-detection
+description: Main application chart for the Fraud Detection System
+version: 1.0.0
+appVersion: 1.0.0
+type: application

@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fraud-detection-config
+  namespace: {{ .Values.global.namespace }}
+data:
+  QDRANT_HOST: {{ .Values.config.qdrantHost | quote }}
+  QDRANT_PORT: {{ .Values.config.qdrantPort | quote }}
+  ML_API_URL: {{ .Values.config.mlApiUrl | quote }}
+  LLM_BASE_URL: {{ .Values.config.llmBaseUrl | quote }}
+  LLM_MODEL: {{ .Values.config.llmModel | quote }}

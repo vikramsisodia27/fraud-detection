@@ -1,0 +1,84 @@
+# =====================================================================
+# Production (Cloud) Overrides
+# =====================================================================
+# Overrides for cloud production deployment (AWS EKS, GCP GKE, etc.)
+# Use: helm install fraud-detection ./fraud-detection \
+#     --values values/production.yaml \
+#     --set secrets.llmApiKey=... --set secrets.openaiApiKey=...
+# =====================================================================
+
+# ── fraud-detection Chart Overrides ─────────────────────────────────
+fraud-detection:
+  global:
+    namespace: fraud-detection
+    # Use a cloud container registry (e.g., ECR, GCR, Docker Hub)
+    imageRegistry: "myregistry.io/fraud-detection"
+    imagePullPolicy: "IfNotPresent"
+    ingress:
+      enabled: true
+      # Replace with your actual domain
+      host: "fraud-api.mycompany.com"
+      # For AWS EKS: "alb", for GCP GKE: "gce", for NGINX: "nginx"
+      className: "nginx"
+
+  agent:
+    replicas: 2
+    resources:
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+      requests:
+        cpu: "250m"
+        memory: "256Mi"
+
+  mlApi:
+    replicas: 2
+    resources:
+      limits:
+        cpu: "1"
+        memory: "1Gi"
+      requests:
+        cpu: "500m"
+        memory: "512Mi"
+
+  mcpServer:
+    replicas: 2
+    resources:
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+      requests:
+        cpu: "250m"
+        memory: "256Mi"
+
+  qdrant:
+    replicas: 1
+    storageSize: "50Gi"
+    storageClassName: "gp2"  # AWS EBS gp2; adjust for your cloud
+    resources:
+      limits:
+        cpu: "2"
+        memory: "4Gi"
+      requests:
+        cpu: "1"
+        memory: "2Gi"
+
+  config:
+    mlflowTrackingUri: "http://mlflow.mlflow-infra.svc.cluster.local:5000"
+
+# ── mlflow-infra Chart Overrides ────────────────────────────────────
+mlflow-infra:
+  global:
+    namespace: mlflow-infra
+
+  mlflow:
+    replicas: 2
+    storageSize: "50Gi"
+    storageClassName: "gp2"
+    resources:
+      limits:
+        cpu: "1"
+        memory: "2Gi"
+      requests:
+        cpu: "500m"
+        memory: "1Gi"

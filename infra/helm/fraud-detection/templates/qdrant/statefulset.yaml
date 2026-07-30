@@ -1,0 +1,40 @@
+{{- if .Values.qdrant.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Values.qdrant.name }}
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: {{ .Values.qdrant.name }}
+    {{- include "fraud-detection.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ .Values.qdrant.name }}
+  replicas: {{ .Values.qdrant.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.qdrant.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.qdrant.name }}
+        {{- include "fraud-detection.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Values.qdrant.name }}
+          image: "{{ .Values.qdrant.image }}:{{ .Values.qdrant.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.qdrant.grpcPort }}
+              name: grpc
+            - containerPort: {{ .Values.qdrant.httpPort }}
+              name: http
+          volumeMounts:
+            - name: qdrant-storage
+              mountPath: /qdrant/storage
+          resources:
+            {{- toYaml .Values.qdrant.resources | nindent 12 }}
+      volumes:
+        - name: qdrant-storage
+          persistentVolumeClaim:
+            claimName: qdrant-pvc
+{{- end }}

@@ -1,0 +1,47 @@
+{{- if .Values.mcpServer.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.mcpServer.name }}
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: {{ .Values.mcpServer.name }}
+    {{- include "fraud-detection.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.mcpServer.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.mcpServer.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.mcpServer.name }}
+        {{- include "fraud-detection.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Values.mcpServer.name }}
+          image: "{{ .Values.global.imageRegistry }}/{{ .Values.mcpServer.image }}:{{ .Values.mcpServer.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.mcpServer.port }}
+          env:
+            # From ConfigMap (non-sensitive)
+            - name: QDRANT_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: fraud-detection-config
+                  key: QDRANT_HOST
+            - name: QDRANT_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: fraud-detection-config
+                  key: QDRANT_PORT
+            # From Secret (sensitive)
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: fraud-detection-secrets
+                  key: OPENAI_API_KEY
+          resources:
+            {{- toYaml .Values.mcpServer.resources | nindent 12 }}
+{{- end }}

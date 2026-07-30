@@ -1,0 +1,87 @@
+# =====================================================================
+# fraud-detection Chart Values
+# =====================================================================
+# This chart deploys the core fraud detection services:
+#   - fraud-agent-service   (main orchestrator)
+#   - fraud-ml-api          (ML predictions)
+#   - fraud-mcp-server      (RAG document retrieval)
+#   - qdrant                (vector database)
+#
+# Override any value in environment-specific files:
+#   helm install ... --values values/minikube.yaml
+# =====================================================================
+
+# ── Global Settings ──────────────────────────────────────────────────
+global:
+  namespace: fraud-detection
+  imageRegistry: "host.docker.internal:5000"
+  imagePullPolicy: "Always"
+  ingress:
+    enabled: true
+    host: "fraud-detection.local"
+    className: "nginx"
+
+# ── fraud-agent-service (Main Orchestrator) ──────────────────────────
+agent:
+  enabled: true
+  name: "fraud-agent-service"
+  replicas: 1
+  image: "fraud-agent-service"
+  tag: "latest"
+  port: 8000
+  resources:
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+    requests:
+      cpu: "250m"
+      memory: "256Mi"
+
+# ── fraud-ml-api (ML Predictions) ────────────────────────────────────
+mlApi:
+  enabled: true
+  name: "fraud-ml-api"
+  replicas: 1
+  image: "fraud-ml-api"
+  tag: "latest"
+  port: 3000
+  resources: {}
+
+# ── fraud-mcp-server (RAG Document Retrieval) ────────────────────────
+mcpServer:
+  enabled: true
+  name: "fraud-mcp-server"
+  replicas: 1
+  image: "fraud-mcp-server"
+  tag: "latest"
+  port: 9000
+  resources: {}
+
+# ── qdrant (Vector Database) ─────────────────────────────────────────
+qdrant:
+  enabled: true
+  name: "qdrant"
+  replicas: 1
+  image: "qdrant/qdrant"
+  tag: "latest"
+  grpcPort: 6333
+  httpPort: 6334
+  storageSize: "5Gi"
+  storageClassName: ""
+  resources: {}
+
+# ── ConfigMap Data (non-sensitive environment variables) ─────────────
+config:
+  qdrantHost: "qdrant"
+  qdrantPort: "6333"
+  mlApiUrl: "http://fraud-ml-api:3000"
+  llmBaseUrl: "https://api.openai.com/v1"
+  llmModel: "gpt-4o-mini"
+  mlflowTrackingUri: "http://mlflow.mlflow-infra.svc.cluster.local:5000"
+
+# ── Secrets (sensitive environment variables) ────────────────────────
+secrets:
+  # WARNING: Set these values via --set or an external secrets file.
+  # Do NOT commit real API keys to version control.
+  llmApiKey: ""
+  openaiApiKey: ""

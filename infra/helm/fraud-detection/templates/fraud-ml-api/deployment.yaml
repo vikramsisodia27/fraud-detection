@@ -1,0 +1,32 @@
+{{- if .Values.mlApi.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.mlApi.name }}
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: {{ .Values.mlApi.name }}
+    {{- include "fraud-detection.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.mlApi.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.mlApi.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.mlApi.name }}
+        {{- include "fraud-detection.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Values.mlApi.name }}
+          image: "{{ .Values.global.imageRegistry }}/{{ .Values.mlApi.image }}:{{ .Values.mlApi.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.mlApi.port }}
+          env:
+            - name: MLFLOW_TRACKING_URI
+              value: {{ .Values.config.mlflowTrackingUri }}
+          resources:
+            {{- toYaml .Values.mlApi.resources | nindent 12 }}
+{{- end }}

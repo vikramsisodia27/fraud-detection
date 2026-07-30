@@ -1,0 +1,19 @@
+{{- if .Values.mlflow.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.mlflow.name }}-pvc
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: {{ .Values.mlflow.name }}
+    {{- include "mlflow-infra.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.mlflow.storageSize }}
+  {{- if .Values.mlflow.storageClassName }}
+  storageClassName: {{ .Values.mlflow.storageClassName }}
+  {{- end }}
+{{- end }}

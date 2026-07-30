@@ -1,0 +1,19 @@
+{{- if .Values.qdrant.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qdrant-pvc
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: {{ .Values.qdrant.name }}
+    {{- include "fraud-detection.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.qdrant.storageSize }}
+  {{- if .Values.qdrant.storageClassName }}
+  storageClassName: {{ .Values.qdrant.storageClassName }}
+  {{- end }}
+{{- end }}

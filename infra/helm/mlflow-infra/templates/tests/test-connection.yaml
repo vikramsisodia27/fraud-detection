@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "mlflow-infra.fullname" . }}-test-connection"
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "mlflow-infra.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args:
+        - '--timeout=5'
+        - 'http://{{ .Values.mlflow.name }}:{{ .Values.mlflow.port }}/'
+  restartPolicy: Never

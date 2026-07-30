@@ -1,0 +1,33 @@
+# =====================================================================
+# mlflow-infra Chart Values
+# =====================================================================
+# Deploys MLflow tracking server in its own namespace (mlflow-infra)
+# for isolation from the main fraud-detection services.
+# =====================================================================
+
+global:
+  namespace: mlflow-infra
+
+mlflow:
+  enabled: true
+  name: "mlflow"
+  replicas: 1
+  image: "ghcr.io/mlflow/mlflow"
+  tag: "v2.19.0"
+  port: 5000
+  storageSize: "5Gi"
+  storageClassName: ""
+  resources: {}
+  # resources:
+  #   limits:
+  #     cpu: "500m"
+  #     memory: "512Mi"
+  #   requests:
+  #     cpu: "250m"
+  #     memory: "256Mi"
+
+secrets:
+  # MLflow currently does not require API keys.
+  # These are provided for future use.
+  llmApiKey: ""
+  openaiApiKey: ""

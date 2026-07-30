@@ -1,0 +1,67 @@
+{{- if .Values.agent.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.agent.name }}
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: {{ .Values.agent.name }}
+    {{- include "fraud-detection.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.agent.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.agent.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.agent.name }}
+        {{- include "fraud-detection.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Values.agent.name }}
+          image: "{{ .Values.global.imageRegistry }}/{{ .Values.agent.image }}:{{ .Values.agent.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.agent.port }}
+          env:
+            # From ConfigMap (non-sensitive)
+            - name: ML_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: fraud-detection-config
+                  key: ML_API_URL
+            - name: LLM_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: fraud-detection-config
+                  key: LLM_BASE_URL
+            - name: LLM_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: fraud-detection-config
+                  key: LLM_MODEL
+            - name: QDRANT_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: fraud-detection-config
+                  key: QDRANT_HOST
+            - name: QDRANT_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: fraud-detection-config
+                  key: QDRANT_PORT
+            # From Secret (sensitive)
+            - name: LLM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: fraud-detection-secrets
+                  key: LLM_API_KEY
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: fraud-detection-secrets
+                  key: OPENAI_API_KEY
+          resources:
+            {{- toYaml .Values.agent.resources | nindent 12 }}
+{{- end }}

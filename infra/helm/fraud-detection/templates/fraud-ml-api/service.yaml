@@ -1,0 +1,18 @@
+{{- if .Values.mlApi.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.mlApi.name }}
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: {{ .Values.mlApi.name }}
+    {{- include "fraud-detection.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: {{ .Values.mlApi.name }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.mlApi.port }}
+      targetPort: {{ .Values.mlApi.port }}
+  type: ClusterIP
+{{- end }}
