@@ -6,38 +6,41 @@
 #     --set secrets.llmApiKey=... --set secrets.openaiApiKey=...
 # =====================================================================
 
-# ── fraud-detection Chart Overrides ─────────────────────────────────
-fraud-detection:
-  global:
-    namespace: fraud-detection
-    imageRegistry: "host.docker.internal:5000"
-    imagePullPolicy: "Always"
-    ingress:
-      enabled: true
-      host: "fraud-detection.local"
-      className: "nginx"
+# ── Global Settings ──────────────────────────────────────────────────
+global:
+  namespace: fraud-detection
+  imageRegistry: "host.docker.internal:5001"
+  imagePullPolicy: "Always"
+  ingress:
+    enabled: true
+    host: "fraud-detection.local"
+    className: "nginx"
 
-  agent:
-    replicas: 1
+# ── fraud-agent-service (Main Orchestrator) ──────────────────────────
+agent:
+  replicas: 1
+  resources:
+    limits:
+      cpu: "1000m"
+      memory: "2Gi"
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
 
-  mlApi:
-    replicas: 1
 
-  mcpServer:
-    replicas: 1
+# ── fraud-ml-api (ML Predictions) ────────────────────────────────────
+mlApi:
+  replicas: 1
 
-  qdrant:
-    replicas: 1
-    storageSize: "5Gi"
+# ── fraud-mcp-server (RAG Document Retrieval) ────────────────────────
+mcpServer:
+  replicas: 1
 
-  config:
-    mlflowTrackingUri: "http://mlflow.mlflow-infra.svc.cluster.local:5000"
+# ── qdrant (Vector Database) ─────────────────────────────────────────
+qdrant:
+  replicas: 1
+  storageSize: "5Gi"
 
-# ── mlflow-infra Chart Overrides ────────────────────────────────────
-mlflow-infra:
-  global:
-    namespace: mlflow-infra
-
-  mlflow:
-    replicas: 1
-    storageSize: "5Gi"
+# ── ConfigMap Data ───────────────────────────────────────────────────
+config:
+  mlflowTrackingUri: "http://mlflow.mlflow-infra.svc.cluster.local:5000"
